@@ -5,7 +5,7 @@ from sklearn import naive_bayes
 from sklearn import preprocessing, grid_search
 from scipy import sparse
 from itertools import combinations
-
+	
 from sets import Set
 import numpy as np
 import pandas as pd
@@ -21,23 +21,23 @@ def group_data(data,degree=3,hash=hash):
 
 
 def OneHotEncoder(data, keymap=None):
-"""
-OneHotEncoder takes data matrix with categorical columns and
-converts it to a sparse binary matrix.
-
-Returns sparse binary matrix and keymap mapping categories to indicies.
-If a keymap is supplied on input it will be used instead of creating one
-and any categories appearing in the data that are not in the keymap are
-ignored
-"""
-if keymap is None:
+	"""
+	OneHotEncoder takes data matrix with categorical columns and
+	converts it to a sparse binary matrix.
+	
+	Returns sparse binary matrix and keymap mapping categories to indicies.
+	If a keymap is supplied on input it will be used instead of creating one
+	and any categories appearing in the data that are not in the keymap are
+	ignored
+	"""
+	if keymap is None:
          keymap = []
          for col in data.T:
              uniques = set(list(col))
              keymap.append(dict((key, i) for i, key in enumerate(uniques)))
-total_pts = data.shape[0]
-outdat = []
-for i, col in enumerate(data.T):
+	total_pts = data.shape[0]
+	outdat = []
+	for i, col in enumerate(data.T):
          km = keymap[i]
          num_labels = len(km)
          spmat = sparse.lil_matrix((total_pts, num_labels))
@@ -45,8 +45,8 @@ for i, col in enumerate(data.T):
              if val in km:
                  spmat[j, km[val]] = 1
          outdat.append(spmat)
-outdat = sparse.hstack(outdat).tocsr()
-return outdat, keymap
+	outdat = sparse.hstack(outdat).tocsr()
+	return outdat, keymap
 
 def optimize_hyperparameters(X_tr, y_tr, model, param_grid, cv_tries):
     print "Performing hyperparameter optimization..."
@@ -158,12 +158,12 @@ def load_data():
     X_test_3 = dt[num_train:]
     X_test_all = np.hstack((X_test,X_test_2,X_test_3))
     #    num_features = X_train_all.shape[1]
-    return X_train_all,X_test_all,y,num_train
+    return X_train_all,X_test_all,y
 
 
 
 #Main
-X,X_test,y,num_train = load_data()
+X,X_test,y = load_data()
 num_features = X.shape[1]
 model = linear_model.LogisticRegression()
 
