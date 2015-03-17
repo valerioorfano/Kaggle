@@ -48,14 +48,17 @@ def clustering(data):
     plt.colorbar(im, cax=axcolor) 
     
     #From the heatmap it is evident there are about 4 clusters.    
-    thres = 28
-    plt.figure()
+    thres = 26
+    plt.figure(figsize=(20,12))
     dendrogram(Y, color_threshold=thres, show_leaf_counts=True)
+    plt.yticks(np.arange(0,35, step=0.5 ))
+    plt.xticks([])
     clusters1 = fcluster(Y, t=thres,criterion='distance')     
     col = np.array(clusters1)
     col = col/float(np.max(col))
     col = np.array([round(x,2) for x in col])
     print col
+    plt.figure()
     plt.scatter(reduced_data[:,0], reduced_data[:,1], c = col)
     plt.show()
     print "cluster1", clusters1
