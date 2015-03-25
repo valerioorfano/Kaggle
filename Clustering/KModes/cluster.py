@@ -1,16 +1,15 @@
 import csv
-from kmodes import *
 import numpy as np
 import pandas as pd
-
+from kmodes import *
 # read the data into a 2-dimensional array
 rawdata = pd.read_csv('soybeans.csv')
 rawdata = np.array(rawdata)
-data = rawdata[:-1, :-1]
+x = rawdata[:-1, :-1]
 iteration = 1	
-c = KModes(data,4)
-c.BuildInitialClusters()
-while c.BuildClusters() > 0:
+c = kmodes(x,4)
+c.Initialization()
+while c.reallocation() > 0:
     print "Iteration: {}".format(iteration) 
     iteration += 1
         
@@ -20,8 +19,11 @@ while c.BuildClusters() > 0:
 print("Writing clusters to Modes file...")
 with open ('Modes.csv','w') as csvfile:
     writer = csv.writer(csvfile, delimiter=',')
-    writer.writerows([[int(y) for y in x]  for x in c.clustervalues])
+    writer.writerows([['    ']])
+    writer.writerows([['Modes for categorical data:']])
+    writer.writerows([['    ']])
+    writer.writerows(c.modes)
 print("Writing clusters to file...")
 with open ('Clusters.csv','w') as csvfile:
     writer = csv.writer(csvfile, delimiter=',')
-    writer.writerows([[x] for x in c.clustership])
+    writer.writerows([c.clustership])

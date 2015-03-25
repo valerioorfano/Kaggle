@@ -1,68 +1,69 @@
-import random
-import copy 
 import numpy as np
-np.set_printoptions(threshold='nan')
+import random
 
-class KModes:
+class kmodes():
 	
-    def __init__(self,z,k=8,verbose=0):
-        self.data = z
+    def __init__(self,x,k=2):
+        """k-protoypes clustering algorithm for mixed numeric and categorical data.
+        Huang, Z.: Clustering large data sets with mixed numeric and categorical values,
+        Proceedings of the First Pacific Asia Knowledge Discovery and Data Mining Conference,
+        Singapore, pp. 21-34, 1997.
+	
+        Inputs: k = number of clusters
+        Attributes: clusters = cluster numbers [no. points]
+        centroids = for numeric atributes
+        modes = for categorical attributes
+        clustership = clustership matrix [k * no. points]
+        distance = clustering cost, defined as the sum distance of all points to their respective clusters
+        gamma = weighing factor that determines relative importance of num./cat. attributes (see discussion in Huang [1997])
+        
+        """
         self.k = k
-        self.verbose = verbose
-        self.numobjects = z.shape[0]
-        self.numattributes = z.shape[1]
-        self.clustervalues = [['' for x in range(self.numattributes)] for y in range(self.k)]
-        self.clustership = [-1 for y in range(self.numobjects)]
+        self.xcat = np.asanyarray(x)
+        self.ncatpoints, self.ncatattrs = self.xcat.shape
+        self.modes = [['' for x in range(self.ncatattrs)] for y in range(self.k)]
+        self.clustership = [-1 for y in range(self.ncatpoints)]
         self.clustercount = [0 for y in range(self.k)]
-        self.clusterfrequency = [[{} for x in range(self.numattributes)] for y in range(self.k)]
-    	
-        assert self.k < self.numobjects, "More clusters than data points?"
-	
-    def BuildInitialClusters(self):
-        # Choose random data values for the k clusters
-        for i in range(self.k):
-            rand = random.randrange(self.numobjects)
-            self.clustervalues[i] = self.data[rand]        
-        totaldistance = 0
-        for i in range(self.numobjects):
-            closest = self.ClosestCluster(i)
-            cluster = closest[0]
-            totaldistance += closest[1]
+        self.clusterfrequency = [[{} for x in range(self.ncatattrs)] for y in range(self.k)]
+        assert self.ncatpoints == self.ncatpoints, "More numerical points than categorical?"
+        assert self.k < self.ncatpoints, "More clusters than data points?"
+
+    
+    def Initialization(self,verbose=1):
+        if verbose:
+            print("Init: initializing centroids")
+            
+        initialcat = random.sample(range(self.ncatpoints),self.k)                
+        self.modes = self.xcat[initialcat]
+                	
+        if verbose:
+            print("Init: initializing clusters")
+        
+        for i in range(self.ncatpoints):
+            # initial assigns to clusters
+            cluster = 0
+            MinDistance = self.Sigma(self.modes[0], self.xcat[i])
+            for z in range(self.k):
+                distance = self.Sigma(self.modes[z], self.xcat[i])
+                if distance < MinDistance:
+                    MinDistance = distance
+                    cluster = z
             self.clustership[i] = cluster
             self.clustercount[cluster] += 1
-            for j in range(self.numattributes):
-                val = self.data[i,j]
+            for j in range(self.ncatattrs):
+                val = self.xcat[i,j]
                 if val in self.clusterfrequency[cluster][j].keys():
                     self.clusterfrequency[cluster][j][val] += 1
                 else:
                     self.clusterfrequency[cluster][j][val] = 1
+                self.modes[cluster][j] = self.HighestFrequency(cluster,j)   
 
-        
-        
-        
-        # DEBUG CODE
-        if self.verbose > 0:
-            for i in range(self.k):
-                print("Initial modes are: Cluster {} -> Mode {}".format(i, self.clustervalues[i]))
-            print("Initial cluster counts are: ")
-            for i in range(self.k):
-                print("\t{} => {}".format(i,self.clustercount[i]))
-            print("Clustership: ")
-            for i in range(self.numobjects):
-                print("row: {} is in cluster {}".format(i,self.clustership[i]))
-        # END DEBUG CODE
-    	
-        # return total cost and initial clusters built
-        return [totaldistance, self.clustervalues]
-	
-    def BuildClusters(self):
+
+    def reallocation(self, verbose=1):
+        if verbose:
+            print("Reallocation process started ...")
         moves = 0
-        # New Modes Centroids. We take the value most frequent
-        for i in range(self.k):
-            for j in range(self.numattributes):
-                self.clustervalues[i][j] = self.HighestFrequency(i,j)
-        #Then  we generate again new clusters    
-        for i in range(self.numobjects):
+        for i in range(self.ncatpoints):
             cluster = self.ClosestCluster(i)[0]
             if self.clustership[i] != cluster:
                 moves += 1
@@ -70,47 +71,40 @@ class KModes:
                 self.clustership[i] = cluster
                 self.clustercount[cluster] += 1
                 self.clustercount[oldcluster] -= 1
-                for j in range(self.numattributes):
-                     val = self.data[i,j]
+                for j in range(self.ncatattrs):
+                     val = self.xcat[i,j]
                      if val in self.clusterfrequency[cluster][j].keys():
                          self.clusterfrequency[cluster][j][val] += 1
                      else:
                          self.clusterfrequency[cluster][j][val] = 1
                      self.clusterfrequency[oldcluster][j][val] -= 1
-
-        # DEBUG CODE
-        if self.verbose > 0:
-            for i in range(self.k):
-                print("New Modes are: Cluster {} -> Mode {}".format(i, self.clustervalues[i]))
-            print("new cluster counts are: ")
-            for i in range(self.k):
-                print("\t{} => {}".format(i,self.clustercount[i]))
-            print("New Clustership: ")
-            for i in range(self.numobjects):
-                print("row: {} is in cluster {}".format(i,self.clustership[i]))
-        # END DEBUG CODE
+                     self.modes[cluster][j] = self.HighestFrequency(cluster,j)
+                     self.modes[oldcluster][j] = self.HighestFrequency(oldcluster,j)
         return moves
 
-	
-    def ClosestCluster(self,o):
+
+    def ClosestCluster(self,i):
         cluster = 0
-        mindistance = self.Distance(o,0)
-        for i in range(self.k):
-            distance = self.Distance(o,i)
+        mindistance =self.Sigma(self.modes[0], self.xcat[i])
+        for z in range(self.k):
+            distance = self.Sigma(self.modes[z], self.xcat[i])
             if distance < mindistance:
                 mindistance = distance
-                cluster = i
+                cluster = z
         return [cluster, mindistance]
-    
-    #This is used to calcualte the dissimilarity matrix    
-    def Distance(self,o,c):
-        dist = 0
-        for i in range(self.numattributes):
-            if self.data[o,i] != self.clustervalues[c][i]:
-                dist += 1
-        return dist
-	
+
+
+    def Distance(self,anum, b):
+        # Euclidean distance
+        return np.sum((anum - b) ** 2)
+
+
+    def Sigma(self,a, b):
+        # simple matching dissimilarity
+        return sum(a != b)
+	 
     def HighestFrequency(self,c,e):
         keys = [key for key,val in self.clusterfrequency[c][e].iteritems() if val == max(self.clusterfrequency[c][e].values())]
         mode = keys[0]
         return mode
+
